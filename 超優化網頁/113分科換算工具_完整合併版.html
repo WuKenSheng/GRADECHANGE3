@@ -1,0 +1,86 @@
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>113分科換算工具</title>
+<style>
+body {font-family:'Arial',sans-serif;background:#f7f9fc;color:#333;padding:20px;margin:0;text-align:center;}
+input,select,button{padding:8px;border-radius:6px;border:1px solid #ccc;transition:all 0.3s ease;}
+.card{background:#fff;padding:15px;border-radius:10px;box-shadow:0 6px 12px rgba(0,0,0,0.1);margin:20px auto;max-width:900px;}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.5.3/jspdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+</head>
+<body>
+
+<h1>113分科換算工具</h1>
+<div class="subtitle">快速評估你的升學機會</div>
+<div class="card">
+<h2>學測成績輸入</h2>
+<div id="score-inputs">
+<div>國文<input id="國文" type="number" min="0" max="15" oninput="updateScore('國文')"/><div id="display-國文"></div></div>
+<div>英文<input id="英文" type="number" min="0" max="15" oninput="updateScore('英文')"/><div id="display-英文"></div></div>
+<div>數A<input id="數A" type="number" min="0" max="15" oninput="updateScore('數A')"/><div id="display-數A"></div></div>
+<div>數B<input id="數B" type="number" min="0" max="15" oninput="updateScore('數B')"/><div id="display-數B"></div></div>
+<div>社會<input id="社會" type="number" min="0" max="15" oninput="updateScore('社會')"/><div id="display-社會"></div></div>
+<div>自然<input id="自然" type="number" min="0" max="15" oninput="updateScore('自然')"/><div id="display-自然"></div></div>
+</div>
+</div>
+
+<div class="card">
+<h2>校系設定</h2>
+<select id="yearList" onchange="updateSchools()"><option value="">選擇年度</option></select>
+<select id="schoolList" onchange="updateDepartments()"><option value="">選擇大學校名</option></select>
+<select id="departmentList" onchange="displayDepartmentDetails()"><option value="">選擇科系名稱</option></select>
+<div id="departmentResults"></div>
+<button onclick="addToEvaluation()">加入評估</button>
+</div>
+
+<div class="card">
+<h2>評估清單 (最多10個)</h2>
+<div id="evaluationList"></div>
+</div>
+
+<button onclick="calculateAll()">計算全部校系</button>
+<button onclick="clearInputs()">一鍵清除資料</button>
+
+<div id="results" class="card"></div>
+
+<script>
+//原有函數(保持不變)
+function convertScore(x){return{max:x*4,min:Math.max(x*4-3,0)}}
+function updateScore(sub){
+  let val=Math.max(0,Math.min(15,document.getElementById(sub).value));
+  document.getElementById(sub).value=val;
+  let score=convertScore(val);
+  document.getElementById(sub).dataset.score=JSON.stringify(score);
+  document.getElementById(`display-${sub}`).innerText=`轉換後最低分:${score.min}, 轉換後最高分:${score.max}`;
+}
+
+//匯入CSV
+let csvData,evaluationData=[];
+Papa.parse("111_112_113_合併倍率資料.csv",{download:true,header:true,complete:function(res){csvData=res.data;initializeYearList();}});
+function initializeYearList(){let years=[...new Set(csvData.map(d=>d['年度']).filter(year=>year))];years.forEach(y=>yearList.innerHTML+=`<option>${y}</option>`);}
+function updateSchools(){
+ let y=yearList.value,schools=[...new Set(csvData.filter(d=>d['年度']==y).map(d=>d['校名']))];
+ schoolList.innerHTML='<option value="">選擇大學校名</option>';schools.forEach(s=>schoolList.innerHTML+=`<option>${s}</option>`);}
+function updateDepartments(){
+ let y=yearList.value,s=schoolList.value,depts=csvData.filter(d=>d['年度']==y&&d['校名']==s);
+ departmentList.innerHTML='<option value="">選擇科系名稱</option>';depts.forEach((d,i)=>departmentList.innerHTML+=`<option value='${i}'>${d['系組名']}</option>`);}
+function displayDepartmentDetails(){
+ let idx=departmentList.value;if(idx==='')return;let y=yearList.value,s=schoolList.value,depts=csvData.filter(d=>d['年度']==y&&d['校名']==s),d=depts[idx];
+ departmentResults.innerHTML=`<div>${d['校名']} ${d['系組名']}<br>最低分數:${d['普通生錄取分數']}</div>`;}
+function addToEvaluation(){
+ if(evaluationData.length>=10){alert("最多只能評估10個校系。");return;}let idx=departmentList.value;if(idx==='')return;
+ let y=yearList.value,s=schoolList.value,d=csvData.filter(d=>d['年度']==y&&d['校名']==s)[idx];
+ evaluationData.push(d);renderEvaluationList();}
+function renderEvaluationList(){
+ evaluationList.innerHTML=evaluationData.map((d,i)=>`<div>${i+1}. ${d['校名']} ${d['系組名']} (${d['年度']})<button onclick="evaluationData.splice(${i},1);renderEvaluationList();">移除</button></div>`).join('');}
+function calculateAll(){results.innerHTML='';}
+function clearInputs(){document.querySelectorAll('input, select').forEach(el=>el.value='');results.innerHTML='';evaluationData=[];renderEvaluationList();}
+</script>
+
+</body>
+</html>
