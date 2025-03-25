@@ -1,0 +1,100 @@
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>校系設定最終評估完整版 (含移除功能與學測成績換算)</title>
+    <style>
+        body {
+            font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif;
+            background-color: #f7f9fc;
+            color: #333333;
+            padding: 20px;
+            margin: 0;
+            text-align: center;
+        }
+        input, select, button {
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            transition: all 0.3s ease;
+        }
+        .card {
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+            margin: 20px auto;
+            max-width: 900px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+</head>
+<body>
+<!-- 原有程式碼（校系設定） -->
+<div class="card">
+    <h2>校系設定</h2>
+    <select id="yearList" onchange="updateSchools()">
+        <option value="">選擇年度</option>
+    </select>
+    <select id="schoolList" onchange="updateDepartments()">
+        <option value="">選擇大學校名</option>
+    </select>
+    <select id="departmentList" onchange="displayDepartmentDetails()">
+        <option value="">選擇科系名稱</option>
+    </select>
+    <div id="departmentResults"></div>
+    <button onclick="addToEvaluation()">加入評估</button>
+</div>
+
+<!-- 修正後新增的評估與學測成績輸入功能 -->
+<div class="card">
+    <h2>評估清單 (最多10個)</h2>
+    <div id="evaluationList"></div>
+    <hr>
+    <h3>114 學測成績輸入</h3>
+    <div style="display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin-top:10px;">
+        <input type="number" id="chinese" placeholder="國文" min="0" max="15">
+        <input type="number" id="english" placeholder="英文" min="0" max="15">
+        <input type="number" id="mathA" placeholder="數A" min="0" max="15">
+        <input type="number" id="mathB" placeholder="數B" min="0" max="15">
+        <input type="number" id="social" placeholder="社會" min="0" max="15">
+        <input type="number" id="science" placeholder="自然" min="0" max="15">
+    </div>
+    <button onclick="calculateScores()" style="margin-top:10px;">計算換算分數</button>
+    <div id="scoreResults" style="margin-top:10px;"></div>
+</div>
+
+<script>
+// 原有的 CSV 資料處理、評估功能 (從你原本檔案複製即可，這裡省略)
+
+// 學測成績換算函數
+function calculateScores() {
+    const subjects = ['chinese', 'english', 'mathA', 'mathB', 'social', 'science'];
+    let resultHtml = '<table border="1" style="margin:0 auto; border-collapse:collapse;"><tr><th>科目</th><th>最低換算分數</th><th>最高換算分數</th></tr>';
+
+    subjects.forEach(sub => {
+        let score = parseInt(document.getElementById(sub).value, 10);
+        if (isNaN(score) || score < 0) score = 0;
+        if (score > 15) score = 15;
+
+        let minConverted = score * 4 - 3;
+        if (minConverted < 0) minConverted = 0;
+        let maxConverted = score * 4;
+
+        const subjectNames = {
+            'chinese': '國文', 'english': '英文', 'mathA': '數A',
+            'mathB': '數B', 'social': '社會', 'science': '自然'
+        };
+
+        resultHtml += `<tr><td>${subjectNames[sub]}</td><td>${minConverted}</td><td>${maxConverted}</td></tr>`;
+    });
+
+    resultHtml += '</table>';
+    document.getElementById('scoreResults').innerHTML = resultHtml;
+}
+</script>
+
+</body>
+</html>
