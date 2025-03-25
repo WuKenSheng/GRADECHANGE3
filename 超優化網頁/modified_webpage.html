@@ -1,0 +1,221 @@
+
+<!DOCTYPE html>
+
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>113分科換算工具</title>
+<style>
+        body {
+            font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif;
+            background-color: #f7f9fc;
+            color: #333333;
+            padding: 20px;
+            margin: 0;
+            text-align: center;
+        }
+        h1 {
+            color: #4a90e2;
+            font-size: 32px;
+        }
+        h2 {
+            color: #333333;
+            font-size: 24px;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+        }
+        input, select, button {
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            transition: all 0.3s ease;
+        }
+        input:focus, select:focus, button:hover {
+            border-color: #4a90e2;
+            box-shadow: 0 0 8px rgba(74,144,226,0.4);
+            outline: none;
+        }
+        .card {
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+            margin: 20px auto;
+            max-width: 900px;
+        }
+        .results {
+            background-color: #eaf4fe;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        .flex-center {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        button {
+            background-color: #4a90e2;
+            color: white;
+            cursor: pointer;
+        }
+        button.clear-btn {
+            background-color: #d9534f;
+        }
+    </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.5.3/jspdf.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script></head>
+<body>
+<h1>113分科換算工具</h1>
+<div class="subtitle">快速評估你的升學機會</div>
+<div class="card">
+<h2>學測成績輸入</h2>
+<div class="flex-center" id="score-inputs">
+<div>國文<input id="國文" max="15" min="0" oninput="updateScore('國文')" type="number"/><div class="score-display" id="display-國文"></div></div>
+<div>英文<input id="英文" max="15" min="0" oninput="updateScore('英文')" type="number"/><div class="score-display" id="display-英文"></div></div>
+<div>數A<input id="數A" max="15" min="0" oninput="updateScore('數A')" type="number"/><div class="score-display" id="display-數A"></div></div>
+<div>數B<input id="數B" max="15" min="0" oninput="updateScore('數B')" type="number"/><div class="score-display" id="display-數B"></div></div>
+<div>社會<input id="社會" max="15" min="0" oninput="updateScore('社會')" type="number"/><div class="score-display" id="display-社會"></div></div>
+<div>自然<input id="自然" max="15" min="0" oninput="updateScore('自然')" type="number"/><div class="score-display" id="display-自然"></div></div>
+</div>
+</div>
+<div class="card"><div class="card">
+<h2>校系設定</h2>
+<select id="yearList" onchange="updateSchools()">
+<option value="">選擇年度</option>
+</select>
+<select id="schoolList" onchange="updateDepartments()">
+<option value="">選擇大學校名</option>
+</select>
+<select id="departmentList" onchange="displayDepartmentDetails()">
+<option value="">選擇科系名稱</option>
+</select>
+<div id="departmentResults"></div>
+<button onclick="addToEvaluation()">加入評估</button>
+</div></div><div class="card">
+<h2>評估清單 (最多10個)</h2>
+<div id="evaluationList"></div>
+</div>
+<button onclick="calculateAll()">計算全部校系</button>
+<button class="clear-btn" onclick="clearInputs()">一鍵清除資料</button>
+<button onclick="window.scrollTo({top: 0, behavior: 'smooth'})">返回頂端</button>
+<div class="results" id="results"></div>
+<script>
+function convertScore(x) {
+    return { max: x * 4, min: Math.max(x * 4 - 3, 0) };
+}
+
+function updateScore(sub) {
+    let input = document.getElementById(sub);
+    let val = Math.max(0, Math.min(15, input.value));
+    input.value = val;
+    let score = convertScore(val);
+    document.getElementById(sub).dataset.score = JSON.stringify(score);
+    document.getElementById(`display-${sub}`).innerText =
+        `轉換後最低分: ${score.min}, 轉換後最高分: ${score.max}`;
+}
+
+function addDepartment() {
+    let subjects1 = ["國文", "英文", "數A", "數B", "社會"];
+    let subjects2 = ["自然", "數甲", "數乙", "歷史", "地理"];
+    let subjects3 = ["公民", "物理", "化學", "生物"];
+    
+    let id = document.querySelectorAll('.dept').length + 1;
+    let html = `<div class="card dept">
+        <div>校系名稱: <input id="name${id}" placeholder="校系名稱"></div>`;
+
+    [subjects1, subjects2, subjects3].forEach(subjects => {
+        html += `<div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:10px;">`;
+        subjects.forEach(sub => {
+            html += `<div>${sub}倍率: <select id="${sub}${id}">
+                        <option value="0">0</option><option value="1">1</option>
+                        <option value="1.25">1.25</option><option value="1.5">1.5</option>
+                        <option value="1.75">1.75</option><option value="2">2</option>
+                     </select></div>`;
+        });
+        html += `</div>`;
+    });
+
+    html += `<div style="margin-top:10px;">最低錄取分數: <input type="number" id="minscore${id}"></div>
+             <button onclick="this.parentElement.remove()">移除</button>
+             </div>`;
+
+    document.getElementById('departments').insertAdjacentHTML('beforeend', html);
+}
+
+function calculateAll() {
+    let resHTML = '';
+    document.querySelectorAll('.dept').forEach((dept, i) => {
+        let minSum = 0, maxSum = 0, weightSum = 0;
+        let basicSubjects = ["國文","英文","數A","數B","社會","自然"];
+        let extraSubjects = ["數甲","數乙","歷史","地理","公民","物理","化學","生物"];
+
+        basicSubjects.forEach(sub => {
+            let scores = JSON.parse(document.getElementById(sub).dataset.score || '{"max":0,"min":0}');
+            let weight = parseFloat(document.getElementById(sub+(i+1)).value) || 0;
+            minSum += scores.max * weight;
+            maxSum += scores.min * weight;
+        });
+
+        extraSubjects.forEach(sub => {
+            let weight = parseFloat(document.getElementById(sub+(i+1)).value) || 0;
+            weightSum += weight;
+        });
+
+        let minscore = parseFloat(document.getElementById('minscore'+(i+1)).value) || 0;
+
+        let minRequired = (minscore - minSum) / (weightSum || 1);
+        let maxRequired = (minscore - maxSum) / (weightSum || 1);
+        
+        let name = document.getElementById('name'+(i+1)).value || "校系"+(i+1);
+        
+        resHTML += `<div><strong>${name}</strong> 計算結果：<br>
+                    分科單科所需最低平均級分: ${minRequired.toFixed(2)}<br>
+                    分科單科所需最高平均級分: ${maxRequired.toFixed(2)}</div><hr>`;
+    });
+    document.getElementById('results').innerHTML = resHTML;
+}
+
+function clearInputs() {
+    document.querySelectorAll('input, select').forEach(el => {
+        if (el.tagName === 'SELECT') el.value = "0";
+        else el.value = '';
+    });
+    document.getElementById('results').innerHTML = '';
+}
+</script><button onclick="generateReport()">產生報表</button>
+<div class="card" id="reportResults" style="margin-top:20px;"></div><div style="text-align:center; margin-top:40px; padding:15px; background-color:#f0f4f8; border-radius:8px; font-size:14px; color:#555;"><div>網頁發想：參捌滴網路教室</div><div><a href="https://open.firstory.me/user/believekensheng/platforms" style="color:#4a90e2; text-decoration:none;" target="_blank">收聽連結：點此前往</a></div><div>網頁製作：ChatGPT</div></div><div id="visitCounter" style="text-align:center; margin-top:20px; padding:10px; font-size:14px; color:#333;">網頁使用次數：載入中...</div><script>
+function generateReport() {
+    let reportHTML = '<h2>📑 報表結果</h2><div class="card">';
+
+    reportHTML += '<h3>一、學測成績與轉換分數</h3>';
+    ["國文","英文","數A","數B","社會","自然"].forEach(function(sub) {
+        let inputVal = document.getElementById(sub).value || 0;
+        let score = JSON.parse(document.getElementById(sub).dataset.score || '{"max":0,"min":0}');
+        reportHTML += `<p>${sub}: 原始成績 ${inputVal}, 轉換後最低分: ${score.min}, 轉換後最高分: ${score.max}</p>`;
+    });
+
+    reportHTML += '<h3>二、校系完整資料</h3>';
+    reportHTML += '<table style="width:100%; border-collapse:collapse; margin-top:10px;" border="1"><tr style="background-color:#4a90e2; color:white;"><th>年分</th><th>校系名稱</th><th>篩選科目與倍率(非0)</th><th>分科單科所需最低級分</th><th>分科單科所需最高級分</th><th>最低錄取分數</th><th>錄取人數</th></tr>';
+    
+    evaluationData.forEach(function(dept) {
+        let subjects_weights = "";
+        ["國倍率","英倍率","數A倍率","數B倍率","社會倍率","自然倍率","數甲倍率","物倍率","化倍率","生倍率","歷倍率","地倍率","公倍率"].forEach(function(sub) {
+            let weight = dept[sub] || 0;
+            if (parseFloat(weight) !== 0) {
+                subjects_weights += `${sub.replace('倍率','')}: ${weight}　`;
+            }
+        });
+
+        reportHTML += `<tr><td>${dept['年度']}</td><td>${dept['校名']} ${dept['系組名']}</td><td>${subjects_weights}</td><td>尚未計算</td><td>尚未計算</td><td>${dept['普通生錄取分數']}</td><td>${dept['錄取人數']}</td></tr>`;
+    });
+
+    reportHTML += '</table></div>';
+    document.getElementById('reportResults').innerHTML = reportHTML;
+}
+</script></body>
+</html>
