@@ -1,0 +1,85 @@
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>校系設定完整評估 (修正版)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+</head>
+<body style="text-align:center;font-family:Arial;background-color:#f0f4f9;">
+    <div>
+        <select id="yearList" onchange="updateSchools()"><option value="">選擇年度</option></select>
+        <select id="schoolList" onchange="updateDepartments()"><option value="">選擇大學校名</option></select>
+        <select id="departmentList"><option value="">選擇科系名稱</option></select>
+        <button onclick="addToEvaluation()">加入評估</button>
+        <div id="evaluationList"></div>
+    </div>
+    <h3>114 學測成績輸入</h3>
+    <div>
+        國文<input type="number" id="chinese" min="0" max="15" oninput="calculateScores()">
+        英文<input type="number" id="english" min="0" max="15" oninput="calculateScores()">
+        數學A<input type="number" id="mathA" min="0" max="15" oninput="calculateScores()">
+        數學B<input type="number" id="mathB" min="0" max="15" oninput="calculateScores()">
+        社會<input type="number" id="social" min="0" max="15" oninput="calculateScores()">
+        自然<input type="number" id="science" min="0" max="15" oninput="calculateScores()">
+    </div>
+    <div id="scoreResults"></div>
+
+    <script>
+        let csvData, evaluationData = [];
+        Papa.parse("111_112_113_合併倍率資料.csv", {
+            download: true, header: true, complete: results => {
+                csvData = results.data;
+                [...new Set(csvData.map(d => d['年度']).filter(Boolean))].forEach(y => {
+                    yearList.innerHTML += `<option value="${y}">${y}</option>`;
+                });
+            }
+        });
+
+        function updateSchools() {
+            let year = yearList.value;
+            schoolList.innerHTML = '<option value="">選擇大學校名</option>';
+            departmentList.innerHTML = '<option value="">選擇科系名稱</option>';
+            [...new Set(csvData.filter(d => d['年度'] === year).map(d => d['校名']))].forEach(s => {
+                schoolList.innerHTML += `<option value="${s}">${s}</option>`;
+            });
+        }
+
+        function updateDepartments() {
+            let year = yearList.value, school = schoolList.value;
+            departmentList.innerHTML = '<option value="">選擇科系名稱</option>';
+            csvData.filter(d => d['年度'] === year && d['校名'] === school).forEach((d, i) => {
+                departmentList.innerHTML += `<option value="${i}">${d['系組名']}</option>`;
+            });
+        }
+
+        function addToEvaluation() {
+            if (evaluationData.length >= 10) {
+                alert("評估清單已滿(最多10個)!");
+                return;
+            }
+            let year = yearList.value, school = schoolList.value, deptIndex = departmentList.value;
+            if (!year || !school || deptIndex === "") {
+                alert("請完整選擇校系!");
+                return;
+            }
+            let dept = csvData.filter(d => d['年度'] === year && d['校名'] === school)[deptIndex];
+            evaluationData.push(dept);
+            renderEvaluation();
+        }
+
+        function renderEvaluation() {
+            evaluationList.innerHTML = evaluationData.map((d,i) => `<div>${i+1}. ${d['校名']} ${d['系組名']} (${d['年度']})</div>`).join('');
+        }
+
+        function calculateScores() {
+            const subNames = {chinese:'國文', english:'英文', mathA:'數學A', mathB:'數學B', social:'社會', science:'自然'};
+            scoreResults.innerHTML = Object.entries(subNames).map(([id,name])=>{
+                let s=Math.min(15,Math.max(0,parseInt(document.getElementById(id).value)||0));
+                return `${name}:最低換算分數 ${Math.max(s*4-3,0)}，最高換算分數 ${s*4}`;
+            }).join('<br>');
+        }
+    </script>
+</body>
+</html>
