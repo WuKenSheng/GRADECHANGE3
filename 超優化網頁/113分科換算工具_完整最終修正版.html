@@ -152,24 +152,30 @@
       elist.innerHTML = '';
       evaluationData.forEach((dept, idx) => {
         const minScore = parseFloat(dept['普通生錄取分數']) || 0;
-        let weightedBasicMax = 0;
-        let weightedBasicMin = 0;
+        let totalHigh = 0;
+        let totalLow = 0;
         let advancedWeightSum = 0;
 
-        subjects.forEach(sub => {
-          const weight = parseFloat(dept[sub + '倍率'] || 0);
+        const mapping = {
+          '國文': '國倍率', '英文': '英倍率', '數A': '數A倍率',
+          '數B': '數B倍率', '社會': '社會倍率', '自然': '自然倍率'
+        };
+
+        for (let sub in mapping) {
+          const weightKey = mapping[sub];
+          const weight = parseFloat(dept[weightKey] || 0);
           const score = userScores[sub] || { min: 0, max: 0 };
-          weightedBasicMax += score.max * weight;
-          weightedBasicMin += score.min * weight;
-        });
+          totalHigh += score.max * weight;
+          totalLow += score.min * weight;
+        }
 
         advancedSubjects.forEach(sub => {
           const weight = parseFloat(dept[sub + '倍率'] || 0);
           advancedWeightSum += weight;
         });
 
-        const avgMin = ((minScore - weightedBasicMax) / (advancedWeightSum || 1)).toFixed(2);
-        const avgMax = ((minScore - weightedBasicMin) / (advancedWeightSum || 1)).toFixed(2);
+        const avgMin = ((minScore - totalHigh) / (advancedWeightSum || 1)).toFixed(2);
+        const avgMax = ((minScore - totalLow) / (advancedWeightSum || 1)).toFixed(2);
 
         elist.innerHTML += `
           <div><strong>${idx+1}. ${dept['年度']} ${dept['校名']} ${dept['系組名']}</strong><br>
