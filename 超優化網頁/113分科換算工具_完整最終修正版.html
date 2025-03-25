@@ -60,13 +60,13 @@
 
   <script>
     const subjects = ["國文", "英文", "數A", "數B", "社會", "自然"];
+    const advancedSubjects = ["數甲", "物", "化", "生", "歷", "地", "公"];
     const subjectWeights = ["國倍率", "英倍率", "數A倍率", "數B倍率", "社會倍率", "自然倍率", "數甲倍率", "物倍率", "化倍率", "生倍率", "歷倍率", "地倍率", "公倍率"];
 
-    // 初始化輸入欄位
     const scoreInputsDiv = document.getElementById('scoreInputs');
     const userScores = {};
     subjects.forEach(sub => {
-      scoreInputsDiv.innerHTML += `<div>${sub}<br><input type="number" id="${sub}" min="0" max="15" onchange="updateScore('${sub}')"></div>`;
+      scoreInputsDiv.innerHTML += `<div>${sub}<br><input type="number" id="${sub}" min="0" max="15" onchange="updateScore('${sub}')"><br><small id="display-${sub}"></small></div>`;
     });
 
     function convertScore(x) {
@@ -76,7 +76,9 @@
     function updateScore(sub) {
       const val = Math.max(0, Math.min(15, parseInt(document.getElementById(sub).value || 0)));
       document.getElementById(sub).value = val;
-      userScores[sub] = convertScore(val);
+      const score = convertScore(val);
+      userScores[sub] = score;
+      document.getElementById(`display-${sub}`).innerText = `最低: ${score.min}，最高: ${score.max}`;
     }
 
     let csvData;
@@ -121,9 +123,9 @@
       const deptData = csvData.filter(d => d['年度'] === year && d['校名'] === school)[index];
       if (!deptData) return;
 
-      let html = `<strong>${deptData['校名']} ${deptData['系組名']}</strong><br>`;
+      let html = `<strong>${deptData['年度']} ${deptData['校名']} ${deptData['系組名']}</strong><br>`;
       subjectWeights.forEach(sw => html += `${sw}: ${deptData[sw] || 0} `);
-      html += `<br><strong>最低錄取分數:</strong> ${deptData['普通生錄取分數'] || 'N/A'}`;
+      html += `<br><strong>最低錄取分數:</strong> ${deptData['普通生錄取分數'] || 'N/A'} 錄取人數: ${deptData['錄取人數'] || 'N/A'}`;
 
       document.getElementById('departmentResults').innerHTML = html;
     }
@@ -142,17 +144,32 @@
       const elist = document.getElementById('evaluationList');
       elist.innerHTML = '';
       evaluationData.forEach((dept, idx) => {
-        let weighted = 0;
-        subjects.forEach(sub => {
-          const weightKey = sub + '倍率';
-          const weight = parseFloat(dept[weightKey] || 0);
-          const score = userScores[sub] || { max: 0, min: 0 };
-          weighted += weight * score.max;
-        });
         const minScore = parseFloat(dept['普通生錄取分數']) || 0;
-        const gap = minScore - weighted;
-        elist.innerHTML += `<div>${idx+1}. ${dept['校名']} ${dept['系組名']}：目前總分 ${weighted.toFixed(1)} / 門檻 ${minScore} <br>
-        預估缺口：<strong>${gap <= 0 ? '✅ 達標' : gap.toFixed(2) + ' 分'}</strong> <button onclick="removeEvaluation(${idx})">移除</button><hr></div>`;
+        let basicSumMax = 0;
+        let basicSumMin = 0;
+        let advancedWeightSum = 0;
+
+        subjects.forEach(sub => {
+          const weight = parseFloat(dept[sub + '倍率'] || 0);
+          const score = userScores[sub] || { min: 0, max: 0 };
+          basicSumMax += score.max * weight;
+          basicSumMin += score.min * weight;
+        });
+
+        advancedSubjects.forEach(sub => {
+          const weight = parseFloat(dept[sub + '倍率'] || 0);
+          advancedWeightSum += weight;
+        });
+
+        const avgMin = ((minScore - basicSumMax) / (advancedWeightSum || 1)).toFixed(2);
+        const avgMax = ((minScore - basicSumMin) / (advancedWeightSum || 1)).toFixed(2);
+
+        elist.innerHTML += `<div>${idx+1}. ${dept['年度']} ${dept['校名']} ${dept['系組名']}<br>
+          各科倍率: ${subjectWeights.map(w => `${w}:${dept[w] || 0}`).join(' ')}<br>
+          最低錄取分數: ${minScore} 錄取人數: ${dept['錄取人數'] || 'N/A'}<br>
+          最低分科單科平均級分: ${avgMin}<br>
+          最高分科單科平均級分: ${avgMax}<br>
+          <button onclick="removeEvaluation(${idx})">移除</button><hr></div>`;
       });
     }
 
