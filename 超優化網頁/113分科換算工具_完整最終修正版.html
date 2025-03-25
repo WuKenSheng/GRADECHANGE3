@@ -1,84 +1,165 @@
-
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>113分科換算工具</title>
-<style>
-body {font-family:'Arial',sans-serif;background:#f7f9fc;color:#333;padding:20px;margin:0;text-align:center;}
-input,select,button{padding:8px;border-radius:6px;border:1px solid #ccc;transition:all 0.3s ease;}
-.card{background:#fff;padding:15px;border-radius:10px;box-shadow:0 6px 12px rgba(0,0,0,0.1);margin:20px auto;max-width:900px;}
-table{width:100%;border-collapse:collapse;margin-top:15px;} th,td{border:1px solid #ccc;padding:5px;} th{background-color:#4a90e2;color:#fff;}
-</style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.5.3/jspdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>智慧升學評估工具</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background-color: #f7f9fc;
+      color: #333;
+      padding: 20px;
+      margin: 0;
+    }
+    .card {
+      background: #fff;
+      padding: 15px;
+      margin: 20px auto;
+      border-radius: 10px;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+      max-width: 900px;
+    }
+    input, select, button {
+      padding: 8px;
+      margin: 4px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      transition: 0.3s ease;
+    }
+    button:hover, input:focus, select:focus {
+      border-color: #4a90e2;
+      box-shadow: 0 0 8px rgba(74,144,226,0.4);
+      outline: none;
+    }
+    h2 { color: #4a90e2; }
+    .flex-wrap { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+    .results { margin-top: 20px; background: #eaf4fe; padding: 15px; border-radius: 10px; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 </head>
 <body>
-<h1>113分科換算工具</h1>
-<div class="subtitle">快速評估你的升學機會</div>
+  <div class="card">
+    <h2>學測成績輸入</h2>
+    <div class="flex-wrap" id="scoreInputs"></div>
+  </div>
 
-<div class="card">
-<h2>學測成績輸入</h2>
-<div id="score-inputs">
-<div>國文<input id="國文" type="number" min="0" max="15" oninput="updateScore('國文')"/><div id="display-國文"></div></div>
-<div>英文<input id="英文" type="number" min="0" max="15" oninput="updateScore('英文')"/><div id="display-英文"></div></div>
-<div>數A<input id="數A" type="number" min="0" max="15" oninput="updateScore('數A')"/><div id="display-數A"></div></div>
-<div>數B<input id="數B" type="number" min="0" max="15" oninput="updateScore('數B')"/><div id="display-數B"></div></div>
-<div>社會<input id="社會" type="number" min="0" max="15" oninput="updateScore('社會')"/><div id="display-社會"></div></div>
-<div>自然<input id="自然" type="number" min="0" max="15" oninput="updateScore('自然')"/><div id="display-自然"></div></div>
-</div>
-</div>
+  <div class="card">
+    <h2>校系選擇</h2>
+    <select id="yearList" onchange="updateSchools()"></select>
+    <select id="schoolList" onchange="updateDepartments()"></select>
+    <select id="departmentList" onchange="displayDepartmentDetails()"></select>
+    <div id="departmentResults"></div>
+    <button onclick="addToEvaluation()">加入評估</button>
+  </div>
 
-<div class="card">
-<h2>校系設定</h2>
-<select id="yearList" onchange="updateSchools()"><option value="">選擇年度</option></select>
-<select id="schoolList" onchange="updateDepartments()"><option value="">選擇大學校名</option></select>
-<select id="departmentList" onchange="displayDepartmentDetails()"><option value="">選擇科系名稱</option></select>
-<div id="departmentResults"></div>
-<button onclick="addToEvaluation()">加入評估</button>
-</div>
+  <div class="card">
+    <h2>評估清單</h2>
+    <div id="evaluationList"></div>
+  </div>
 
-<div class="card">
-<h2>評估清單 (最多10個)</h2>
-<div id="evaluationList"></div>
-</div>
+  <script>
+    const subjects = ["國文", "英文", "數A", "數B", "社會", "自然"];
+    const subjectWeights = ["國倍率", "英倍率", "數A倍率", "數B倍率", "社會倍率", "自然倍率", "數甲倍率", "物倍率", "化倍率", "生倍率", "歷倍率", "地倍率", "公倍率"];
 
-<button onclick="calculateAll()">計算全部校系</button>
-<button onclick="clearInputs()">一鍵清除資料</button>
+    // 初始化輸入欄位
+    const scoreInputsDiv = document.getElementById('scoreInputs');
+    const userScores = {};
+    subjects.forEach(sub => {
+      scoreInputsDiv.innerHTML += `<div>${sub}<br><input type="number" id="${sub}" min="0" max="15" onchange="updateScore('${sub}')"></div>`;
+    });
 
-<div id="results" class="card"></div>
+    function convertScore(x) {
+      return { max: x * 4, min: Math.max(x * 4 - 3, 0) };
+    }
 
-<script>
-function convertScore(x){return{max:x*4,min:x*4-3}}
-function updateScore(sub){
-  let val=Math.max(0,Math.min(15,document.getElementById(sub).value));
-  document.getElementById(sub).value=val;
-  let score=convertScore(val);
-  document.getElementById(sub).dataset.score=JSON.stringify(score);
-  document.getElementById(`display-${sub}`).innerText=`轉換後最低分:${score.min}, 轉換後最高分:${score.max}`;
-}
+    function updateScore(sub) {
+      const val = Math.max(0, Math.min(15, parseInt(document.getElementById(sub).value || 0)));
+      document.getElementById(sub).value = val;
+      userScores[sub] = convertScore(val);
+    }
 
-let csvData,evaluationData=[];
-Papa.parse("111_112_113_合併倍率資料.csv",{download:true,header:true,complete:function(res){csvData=res.data;initializeYearList();}});
-function initializeYearList(){let years=[...new Set(csvData.map(d=>d['年度']).filter(year=>year))];years.forEach(y=>yearList.innerHTML+=`<option>${y}</option>`);}
-function updateSchools(){
- let y=yearList.value,schools=[...new Set(csvData.filter(d=>d['年度']==y).map(d=>d['校名']))];
- schoolList.innerHTML='<option value="">選擇大學校名</option>';schools.forEach(s=>schoolList.innerHTML+=`<option>${s}</option>`);}
-function updateDepartments(){
- let y=yearList.value,s=schoolList.value,depts=csvData.filter(d=>d['年度']==y&&d['校名']==s);
- departmentList.innerHTML='<option value="">選擇科系名稱</option>';depts.forEach((d,i)=>departmentList.innerHTML+=`<option value='${i}'>${d['系組名']}</option>`);}
-function displayDepartmentDetails(){
- let idx=departmentList.value;if(idx==='')return;let y=yearList.value,s=schoolList.value,depts=csvData.filter(d=>d['年度']==y&&d['校名']==s),d=depts[idx];
- departmentResults.innerHTML=`<div>${d['校名']} ${d['系組名']}<br>最低分數:${d['普通生錄取分數']}</div>`;}
-function addToEvaluation(){
- if(evaluationData.length>=10){alert("最多只能評估10個校系。");return;}let idx=departmentList.value;if(idx==='')return;
- let y=yearList.value,s=schoolList.value,d=csvData.filter(d=>d['年度']==y&&d['校名']==s)[idx];
- evaluationData.push(d);renderEvaluationList();}
-function renderEvaluationList(){
- evaluationList.innerHTML=evaluationData.map((d,i)=>`<div>${d['年度']} ${d['校名']} ${d['系組名']}<br>最低分數:${d['普通生錄取分數']} 錄取人數:${d['錄取人數']}<button onclick="evaluationData.splice(${i},1);renderEvaluationList();">移除</button></div>`).join('');}
-function calculateAll(){results.innerHTML='';}
-function clearInputs(){document.querySelectorAll('input, select').forEach(el=>el.value='');results.innerHTML='';evaluationData=[];renderEvaluationList();}
-</script>
+    let csvData;
+    let evaluationData = [];
+
+    Papa.parse("111_112_113_合併倍率資料.csv", {
+      download: true,
+      header: true,
+      complete: function(results) {
+        csvData = results.data;
+        initializeYearList();
+      }
+    });
+
+    function initializeYearList() {
+      const years = [...new Set(csvData.map(d => d['年度']).filter(Boolean))];
+      const yearList = document.getElementById('yearList');
+      yearList.innerHTML = '<option value="">選擇年度</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
+    }
+
+    function updateSchools() {
+      const year = document.getElementById('yearList').value;
+      const schools = [...new Set(csvData.filter(d => d['年度'] === year).map(d => d['校名']))];
+      const schoolList = document.getElementById('schoolList');
+      schoolList.innerHTML = '<option value="">選擇大學校名</option>' + schools.map(s => `<option value="${s}">${s}</option>`).join('');
+      document.getElementById('departmentList').innerHTML = '<option value="">選擇科系名稱</option>';
+    }
+
+    function updateDepartments() {
+      const year = document.getElementById('yearList').value;
+      const school = document.getElementById('schoolList').value;
+      const departments = csvData.filter(d => d['年度'] === year && d['校名'] === school);
+      const deptList = document.getElementById('departmentList');
+      deptList.innerHTML = '<option value="">選擇科系名稱</option>' + departments.map((d, i) => `<option value="${i}">${d['系組名']}</option>`).join('');
+    }
+
+    function displayDepartmentDetails() {
+      const index = document.getElementById('departmentList').value;
+      if (!index) return;
+      const year = document.getElementById('yearList').value;
+      const school = document.getElementById('schoolList').value;
+      const deptData = csvData.filter(d => d['年度'] === year && d['校名'] === school)[index];
+      if (!deptData) return;
+
+      let html = `<strong>${deptData['校名']} ${deptData['系組名']}</strong><br>`;
+      subjectWeights.forEach(sw => html += `${sw}: ${deptData[sw] || 0} `);
+      html += `<br><strong>最低錄取分數:</strong> ${deptData['普通生錄取分數'] || 'N/A'}`;
+
+      document.getElementById('departmentResults').innerHTML = html;
+    }
+
+    function addToEvaluation() {
+      if (evaluationData.length >= 10) return alert("最多10筆校系！");
+      const index = document.getElementById('departmentList').value;
+      const year = document.getElementById('yearList').value;
+      const school = document.getElementById('schoolList').value;
+      const deptData = csvData.filter(d => d['年度'] === year && d['校名'] === school)[index];
+      evaluationData.push(deptData);
+      renderEvaluationList();
+    }
+
+    function renderEvaluationList() {
+      const elist = document.getElementById('evaluationList');
+      elist.innerHTML = '';
+      evaluationData.forEach((dept, idx) => {
+        let weighted = 0;
+        subjects.forEach(sub => {
+          const weightKey = sub + '倍率';
+          const weight = parseFloat(dept[weightKey] || 0);
+          const score = userScores[sub] || { max: 0, min: 0 };
+          weighted += weight * score.max;
+        });
+        const minScore = parseFloat(dept['普通生錄取分數']) || 0;
+        const gap = minScore - weighted;
+        elist.innerHTML += `<div>${idx+1}. ${dept['校名']} ${dept['系組名']}：目前總分 ${weighted.toFixed(1)} / 門檻 ${minScore} <br>
+        預估缺口：<strong>${gap <= 0 ? '✅ 達標' : gap.toFixed(2) + ' 分'}</strong> <button onclick="removeEvaluation(${idx})">移除</button><hr></div>`;
+      });
+    }
+
+    function removeEvaluation(idx) {
+      evaluationData.splice(idx, 1);
+      renderEvaluationList();
+    }
+  </script>
 </body>
 </html>
