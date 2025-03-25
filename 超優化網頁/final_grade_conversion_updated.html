@@ -1,0 +1,133 @@
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>校系設定最終評估完整版 (含成績換算)</title>
+    <style>
+        body {
+            font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif;
+            background-color: #f7f9fc;
+            color: #333333;
+            padding: 20px;
+            margin: 0;
+            text-align: center;
+        }
+        input, select, button {
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            transition: all 0.3s ease;
+        }
+        .card {
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+            margin: 20px auto;
+            max-width: 900px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+</head>
+<body>
+
+<div class="card">
+    <h2>校系設定</h2>
+    <select id="yearList" onchange="updateSchools()">
+        <option value="">選擇年度</option>
+    </select>
+    <select id="schoolList" onchange="updateDepartments()">
+        <option value="">選擇大學校名</option>
+    </select>
+    <select id="departmentList" onchange="displayDepartmentDetails()">
+        <option value="">選擇科系名稱</option>
+    </select>
+    <div id="departmentResults"></div>
+    <button onclick="addToEvaluation()">加入評估</button>
+</div>
+
+<div class="card">
+    <h2>評估清單 (最多10個)</h2>
+    <div id="evaluationList"></div>
+
+    <h3>114 學測成績輸入</h3>
+    <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+        <div>國文: <input type="number" id="chinese" min="0" max="15" oninput="calculateScores()"></div>
+        <div>英文: <input type="number" id="english" min="0" max="15" oninput="calculateScores()"></div>
+        <div>數學A: <input type="number" id="mathA" min="0" max="15" oninput="calculateScores()"></div>
+        <div>數學B: <input type="number" id="mathB" min="0" max="15" oninput="calculateScores()"></div>
+        <div>社會: <input type="number" id="social" min="0" max="15" oninput="calculateScores()"></div>
+        <div>自然: <input type="number" id="science" min="0" max="15" oninput="calculateScores()"></div>
+    </div>
+
+    <div id="scoreConversionResults" style="margin-top:20px;"></div>
+</div>
+
+<script>
+let csvData;
+let evaluationData = [];
+
+Papa.parse("111_112_113_合併倍率資料.csv", {
+    download: true,
+    header: true,
+    complete: function(results) {
+        csvData = results.data;
+        initializeYearList();
+    }
+});
+
+function initializeYearList() {
+    let years = [...new Set(csvData.map(d => d['年度']).filter(year => year))];
+    let yearList = document.getElementById('yearList');
+    yearList.innerHTML = '<option value="">選擇年度</option>';
+    years.forEach(year => {
+        yearList.innerHTML += `<option value="${year}">${year}</option>`;
+    });
+}
+
+function updateSchools() {
+    let year = document.getElementById('yearList').value;
+    let schools = [...new Set(csvData.filter(d => d['年度'] === year).map(d => d['校名']))];
+    let schoolList = document.getElementById('schoolList');
+    schoolList.innerHTML = '<option value="">選擇大學校名</option>';
+    schools.forEach(school => {
+        schoolList.innerHTML += `<option value="${school}">${school}</option>`;
+    });
+    document.getElementById('departmentList').innerHTML = '<option value="">選擇科系名稱</option>';
+}
+
+function updateDepartments() {
+    let year = document.getElementById('yearList').value;
+    let school = document.getElementById('schoolList').value;
+    let departments = csvData.filter(d => d['年度'] === year && d['校名'] === school);
+    let departmentList = document.getElementById('departmentList');
+    departmentList.innerHTML = '<option value="">選擇科系名稱</option>';
+    departments.forEach((dept, index) => {
+        departmentList.innerHTML += `<option value='${index}'>${dept['系組名']}</option>`;
+    });
+}
+
+function calculateScores() {
+    const subjects = {
+        chinese: "國文", english: "英文", mathA: "數學A",
+        mathB: "數學B", social: "社會", science: "自然"
+    };
+    let resultsHtml = '';
+
+    for (let [id, name] of Object.entries(subjects)) {
+        let score = parseInt(document.getElementById(id).value);
+        score = isNaN(score) ? 0 : Math.min(Math.max(score, 0), 15);
+        let minConverted = Math.max(score * 4 - 3, 0);
+        let maxConverted = score * 4;
+
+        resultsHtml += `<div>${name}：最低換算分數 ${minConverted}，最高換算分數 ${maxConverted}</div>`;
+    }
+
+    document.getElementById("scoreConversionResults").innerHTML = resultsHtml;
+}
+</script>
+
+</body>
+</html>
