@@ -35,6 +35,8 @@
     h2 { color: #4a90e2; }
     .flex-wrap { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
     .results { margin-top: 20px; background: #eaf4fe; padding: 15px; border-radius: 10px; }
+    .score-box { text-align: center; width: 140px; }
+    .score-box small { display: block; color: #555; margin-top: 4px; font-size: 12px; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 </head>
@@ -66,7 +68,12 @@
     const scoreInputsDiv = document.getElementById('scoreInputs');
     const userScores = {};
     subjects.forEach(sub => {
-      scoreInputsDiv.innerHTML += `<div>${sub}<br><input type="number" id="${sub}" min="0" max="15" onchange="updateScore('${sub}')"><br><small id="display-${sub}"></small></div>`;
+      scoreInputsDiv.innerHTML += `
+        <div class="score-box">
+          ${sub}<br>
+          <input type="number" id="${sub}" min="0" max="15" onchange="updateScore('${sub}')">
+          <small id="display-${sub}"></small>
+        </div>`;
     });
 
     function convertScore(x) {
@@ -78,7 +85,7 @@
       document.getElementById(sub).value = val;
       const score = convertScore(val);
       userScores[sub] = score;
-      document.getElementById(`display-${sub}`).innerText = `最低: ${score.min}，最高: ${score.max}`;
+      document.getElementById(`display-${sub}`).innerText = `最低：${score.min}，最高：${score.max}`;
     }
 
     let csvData;
@@ -145,15 +152,15 @@
       elist.innerHTML = '';
       evaluationData.forEach((dept, idx) => {
         const minScore = parseFloat(dept['普通生錄取分數']) || 0;
-        let basicSumMax = 0;
-        let basicSumMin = 0;
+        let weightedBasicMax = 0;
+        let weightedBasicMin = 0;
         let advancedWeightSum = 0;
 
         subjects.forEach(sub => {
           const weight = parseFloat(dept[sub + '倍率'] || 0);
           const score = userScores[sub] || { min: 0, max: 0 };
-          basicSumMax += score.max * weight;
-          basicSumMin += score.min * weight;
+          weightedBasicMax += score.max * weight;
+          weightedBasicMin += score.min * weight;
         });
 
         advancedSubjects.forEach(sub => {
@@ -161,14 +168,14 @@
           advancedWeightSum += weight;
         });
 
-        const avgMin = ((minScore - basicSumMax) / (advancedWeightSum || 1)).toFixed(2);
-        const avgMax = ((minScore - basicSumMin) / (advancedWeightSum || 1)).toFixed(2);
+        const avgMin = ((minScore - weightedBasicMax) / (advancedWeightSum || 1)).toFixed(2);
+        const avgMax = ((minScore - weightedBasicMin) / (advancedWeightSum || 1)).toFixed(2);
 
-        elist.innerHTML += `<div>${idx+1}. ${dept['年度']} ${dept['校名']} ${dept['系組名']}<br>
-          各科倍率: ${subjectWeights.map(w => `${w}:${dept[w] || 0}`).join(' ')}<br>
-          最低錄取分數: ${minScore} 錄取人數: ${dept['錄取人數'] || 'N/A'}<br>
-          最低分科單科平均級分: ${avgMin}<br>
-          最高分科單科平均級分: ${avgMax}<br>
+        elist.innerHTML += `
+          <div><strong>${idx+1}. ${dept['年度']} ${dept['校名']} ${dept['系組名']}</strong><br>
+          各科倍率：${subjectWeights.map(w => `${w}: ${dept[w] || 0}`).join(' ｜ ')}<br>
+          最低錄取分數：${minScore} ｜ 錄取人數：${dept['錄取人數'] || 'N/A'}<br>
+          🔹 最低分科單科平均級分：${avgMin} ｜ 🔸 最高分科單科平均級分：${avgMax}<br>
           <button onclick="removeEvaluation(${idx})">移除</button><hr></div>`;
       });
     }
